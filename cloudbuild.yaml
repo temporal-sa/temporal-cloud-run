@@ -1,0 +1,129 @@
+#
+# inspired by
+# https://github.com/GoogleCloudPlatform/opentelemetry-cloud-run/
+#
+
+steps:
+  - name: "gradle:8.0-jdk17"
+    entrypoint: gradle
+    dir: 'app'
+    args: ['build']
+    id: BUILD_JAVA_APP
+    waitFor: ["-"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "${_IMAGE_APP}", "./app", "--build-arg=JAR_FILE=build/libs/app.jar"]
+    id: BUILD_SAMPLE_APP
+    waitFor:
+      - BUILD_JAVA_APP
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_APP}"]
+    id: PUSH_SAMPLE_APP
+    waitFor:
+      - BUILD_SAMPLE_APP
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "${_IMAGE_COLLECTOR}", "./collector"]
+    id: BUILD_COLLECTOR
+    waitFor: ["-"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_COLLECTOR}"]
+    id: PUSH_COLLECTOR
+    waitFor:
+      - BUILD_COLLECTOR
+
+# uses perl instead of SED because of @ sign in email address
+  - name: "ubuntu"
+    env:
+      - "IMAGE_APP=${_IMAGE_APP}"
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+      - "TEMPORAL_NAMESPACE=${_TEMPORAL_NAMESPACE}"
+      - "TEMPORAL_ENDPOINT=${_TEMPORAL_ENDPOINT}"
+      - "TEMPORAL_INSECURE_TRUST_MANAGER=${_TEMPORAL_INSECURE_TRUST_MANAGER}"
+      - "SA_EMAIL=${_SA_EMAIL}"
+    script: |
+      echo "substituting variables"
+      sed -i s@%OTELCOL_IMAGE%@${IMAGE_COLLECTOR}@g run-service.yaml
+      sed -i s@%SAMPLE_APP_IMAGE%@${IMAGE_APP}@g run-service.yaml
+      sed -i s@%TEMPORAL_NAMESPACE%@${TEMPORAL_NAMESPACE}@g run-service.yaml
+      sed -i s@%TEMPORAL_ENDPOINT%@${TEMPORAL_ENDPOINT}@g run-service.yaml
+      sed -i s@%TEMPORAL_INSECURE_TRUST_MANAGER%@${TEMPORAL_INSECURE_TRUST_MANAGER}@g run-service.yaml
+      perl -p -e 's/%SERVICE_ACCOUNT_EMAIL%/$ENV{SA_EMAIL}/g' run-service.yaml > run-service-new.yaml
+      cp run-service-new.yaml run-service.yaml
+      echo "done substituting variables"
+      cat run-service.yaml
+    id: REPLACE_YAML_VALUE
+    waitFor: ["-"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "replace",
+        "run-service.yaml",
+        "--region",
+        "${_REGION}",
+      ]
+    id: DEPLOY_MULTICONTAINER
+    waitFor:
+      - PUSH_SAMPLE_APP
+      - PUSH_COLLECTOR
+      - REPLACE_YAML_VALUE
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "set-iam-policy",
+        "temporal-metrics-sample",
+        "policy.yaml",
+        "--region",
+        "${_REGION}",
+        "--quiet",
+      ]
+    id: ALLOW_UNAUTHENTICATED
+    waitFor:
+      - DEPLOY_MULTICONTAINER
+
+substitutions:
+  _REGION: us-east1
+  _REPOSITORY_NAME: demo-repository
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_NAME}
+  _IMAGE_APP: ${_REGISTRY}/metrics-app
+  _IMAGE_COLLECTOR: ${_REGISTRY}/collector
+  _SA_NAME: temporal-cloud-run-sa
+  _SA_EMAIL: temporal-cloud-run-sa@${PROJECT_ID}.iam.gserviceaccount.com
+  _TEMPORAL_NAMESPACE: foo.xxxx
+  _TEMPORAL_ENDPOINT: foo.xxxx.tmprl.cloud:7233
+  _TEMPORAL_INSECURE_TRUST_MANAGER: "false"
+
+#cccccbglcdunkrrnbucrdiedikgtuuhrhljfrbcfjrbi
+
+# override these substutions when submitting the build in the current folder
+#  gcloud builds submit . \
+#    --substitutions=_REGION=<region>,_REPOSITORY_NAME=<repo>_SA_NAME=xxxx-sa_TEMPORAL_NAMESPACE=<namespace>,_TEMPORAL_ENDPOINT=<endpoint>,_TEMPORAL_INSECURE_TRUST_MANAGER=true \
+#
+
+images:
+  - ${_IMAGE_APP}
+  - ${_IMAGE_COLLECTOR}
+
+# comment out the following line if you want to run Cloud Build with the existing
+# service account with the following roles.
+# * roles/iam.serviceAccountUser
+# * roles/storage.objectViewer
+# * roles/logging.logWriter
+# * roles/artifactregistry.createOnPushWriter
+# * roles/run.admin
+# * roles/secretmanager.secretAccessor
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY

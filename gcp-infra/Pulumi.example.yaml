@@ -1,0 +1,16 @@
+config:
+  gcp:project: <your gcp project id - stays constant>
+  temporal-cloud-run:gcp: # Important:  the prefix (temporal-cloud-run) needs to match name in the Pulumi.yaml file
+    billingAccountId: <your billing account id>
+    folderId: <folder if applicable>
+    projectName: <your project name - pulumi appends this with a changing id>
+    organizationId: <your gcp organization id>
+    region: <gcp region to use eg. us-east1>
+    zone: <gcp zone e.g. us-east1-d>
+    vpcName: <vpc name>
+  temporal-cloud-run:temporal-cloud:
+    namespace: <namespace.goes-here>
+    endpoint: <namespace.goes-here>.tmprl.cloud:7233
+    insecureTrustManager: false
+    clientKeyFile: /path/to/your/client.key
+    clientCertFile: /path/to/your/cert.pem

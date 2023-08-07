@@ -1,0 +1,3 @@
+name: temporal-cloud-run
+runtime: nodejs
+description: Demonstrates how to run a Temporal Worker on Cloud Run

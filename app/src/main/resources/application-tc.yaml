@@ -1,0 +1,15 @@
+# Configuration for Temporal Cloud
+spring:
+  temporal:
+    # override with -Dspring.temporal.namespace=yournamespace.accountid
+    namespace: temporal-cloud-namespace # https://docs.temporal.io/cloud/#temporal-cloud-namespace-id
+    connection:
+      # override with -Dspring.temporal.connection.target=yournamspace.accountid.tmprl.cloud:7233
+      target: namespace.account_id.tmprl.cloud:7233 # namespace.accountId.tmprl.cloud:7233
+      mtls:
+        # overridden - see runontc.sh
+        key-file: /path/to/your.key
+        cert-chain-file: /path/to/your/cert.pem
+        # override with -Dspring.temporal.connection.mtls.insecure=true
+        insecure-trust-manager: false # or add ca.pem to java default truststore
+        # more configuration options https://github.com/temporalio/sdk-java/tree/master/temporal-spring-boot-autoconfigure-alpha#mtls

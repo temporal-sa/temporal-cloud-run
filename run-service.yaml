@@ -1,0 +1,80 @@
+#
+# inspired by https://github.com/GoogleCloudPlatform/opentelemetry-cloud-run/
+#
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: temporal-metrics-sample
+  labels:
+    cloud.googleapis.com/location: us-east1
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+    run.googleapis.com/description: Example Temporal Worker deployed in Cloud Run with Open Telemetry Collector as a sidecar
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/cpu-throttling: 'false'  # we need to keep the CPU running
+#        run.googleapis.com/execution-environment: gen1
+#        run.googleapis.com/container-dependencies: '{"app":["collector"]}'
+    spec:
+      serviceAccountName: %SERVICE_ACCOUNT_EMAIL%
+      containers:
+      - image: "%SAMPLE_APP_IMAGE%"
+        name: app
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /heath
+            port: 8081
+        command:
+        - "java"
+        args:
+# Optional Memory args (not validated)
+#        - "-Xmx382293K"
+#        - "-XX:MaxMetaspaceSize=64M"
+#        - "-Xss995K"
+#        - "-Xms82293K"
+        - "-Djava.security.edg=file:/dev/./urandom"
+        - "-Dspring.profiles.active=tc"
+        - "-Dspring.temporal.namespace=%TEMPORAL_NAMESPACE%"
+        - "-Dspring.temporal.connection.target=%TEMPORAL_ENDPOINT%"
+        - "-Dspring.temporal.connection.mtls.insecure-trust-manager=%TEMPORAL_INSECURE_TRUST_MANAGER%"
+        - "-Dspring.temporal.connection.mtls.key-file=/keyvolume/client.key"  # must match volume mount and path
+        - "-Dspring.temporal.connection.mtls.cert-chain-file=/cavolume/clientCert.pem" # must mach volume mount and path
+        - "-jar"
+        - "app.jar"
+        - "metrics-app"
+        ports:
+          - containerPort: 8080
+        volumeMounts:
+        - name: cacert_volume
+          readOnly: true
+          mountPath: /cavolume
+        - name: key_volume
+          readOnly: true
+          mountPath: /keyvolume
+#      - image: "%OTELCOL_IMAGE%"
+#        name: collector
+#        startupProbe:
+#          httpGet:
+#            path: /
+#            port: 13133
+      volumes:
+      - name: cacert_volume
+        secret:
+          secretName: clientCert
+          items:
+          - key: latest
+            path: clientCert.pem
+      - name: key_volume
+        secret:
+          secretName: clientKey
+          items:
+          - key: latest
+            path: client.key

@@ -1,0 +1,10 @@
+.DS_Store
+.gcloudignore
+.git
+.gitignore
+/node_modules/
+/gcp-infra/
+/app/build/
+/app/.DS_Store
+/app/.idea/
+/app/.gradle/

@@ -1,0 +1,48 @@
+plugins {
+    id 'org.springframework.boot' version '2.7.13'
+    id "net.ltgt.errorprone" version "3.1.0"
+}
+
+apply plugin: 'org.springframework.boot'
+apply plugin: 'java'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+ext {
+    otelVersion = '1.27.0'
+    otelVersionAlpha = "${otelVersion}-alpha"
+    javaSDKVersion = '1.20.1'
+    jarVersion = '1.0.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-thymeleaf"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "io.temporal:temporal-spring-boot-starter-alpha:$javaSDKVersion"
+    runtimeOnly "io.micrometer:micrometer-registry-prometheus"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    dependencies {
+        errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
+        if (JavaVersion.current().isJava11Compatible()) {
+            errorprone('com.google.errorprone:error_prone_core:2.20.0')
+        } else {
+            errorprone('com.google.errorprone:error_prone_core:2.21.0')
+        }
+    }
+}
+
+bootJar {
+    enabled = true
+}
+
+jar {
+    enabled = false
+}

@@ -1,0 +1,12 @@
+{
+    "name": "temporal-cloud-run",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^16"
+    },
+    "dependencies": {
+        "@pulumi/command": "^0.8.1",
+        "@pulumi/gcp": "^6.0.0",
+        "@pulumi/pulumi": "^3.0.0"
+    }
+}
