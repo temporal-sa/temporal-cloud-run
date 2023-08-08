@@ -176,6 +176,13 @@ const svcAccountSecretManagerAccessor = new gcp.projects.IAMMember("cr-svc-acct-
    member: pulumi.interpolate`serviceAccount:${cloudRunServiceAccount.email}`,
 });
 
+// need to be able to write to Managed Prometheus
+const svcAccountCloudRunTimeSeriesCreate = new gcp.projects.IAMMember("cr-svc-acct-time-series-create", {
+  project: myProject.projectId,
+  role: "roles/monitoring.metricWriter",
+  member: pulumi.interpolate`serviceAccount:${cloudRunServiceAccount.email}`,
+});
+
 // create an artifact registry
 const artifactRegistry = new gcp.artifactregistry.Repository("artifact-repo", {
    description: "Demo Docker repository",

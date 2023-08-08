@@ -74,22 +74,22 @@ steps:
       - PUSH_COLLECTOR
       - REPLACE_YAML_VALUE
 
-  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
-    entrypoint: gcloud
-    args:
-      [
-        "run",
-        "services",
-        "set-iam-policy",
-        "temporal-metrics-sample",
-        "policy.yaml",
-        "--region",
-        "${_REGION}",
-        "--quiet",
-      ]
-    id: ALLOW_UNAUTHENTICATED
-    waitFor:
-      - DEPLOY_MULTICONTAINER
+#  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+#    entrypoint: gcloud
+#    args:
+#      [
+#        "run",
+#        "services",
+#        "set-iam-policy",
+#        "temporal-metrics-sample",
+#        "policy.yaml",
+#        "--region",
+#        "${_REGION}",
+#        "--quiet",
+#      ]
+#    id: ALLOW_UNAUTHENTICATED
+#    waitFor:
+#      - DEPLOY_MULTICONTAINER
 
 substitutions:
   _REGION: us-east1

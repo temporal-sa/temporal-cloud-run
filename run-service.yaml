@@ -16,8 +16,9 @@ spec:
     metadata:
       annotations:
         run.googleapis.com/cpu-throttling: 'false'  # we need to keep the CPU running
+        run.googleapis.com/startup-cpu-boost: 'true' # java likes more CPU
 #        run.googleapis.com/execution-environment: gen1
-#        run.googleapis.com/container-dependencies: '{"app":["collector"]}'
+        run.googleapis.com/container-dependencies: '{"app":["collector"]}'
     spec:
       serviceAccountName: %SERVICE_ACCOUNT_EMAIL%
       containers:
@@ -30,17 +31,26 @@ spec:
           initialDelaySeconds: 30
         livenessProbe:
           httpGet:
-            path: /heath
-            port: 8081
+            path: /
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "4"
         command:
         - "java"
         args:
 # Optional Memory args (not validated)
 #        - "-Xmx382293K"
 #        - "-XX:MaxMetaspaceSize=64M"
-#        - "-Xss995K"
 #        - "-Xms82293K"
+        - "-Xss256k"              # reduce thread stack size
+        - "-XX:NativeMemoryTracking=summary"
+        - "-XX:+UnlockDiagnosticVMOptions"
+        - "-XX:+PrintNMTStatistics"
+        - "-XX:+TieredCompilation"
+        - "-XX:TieredStopAtLevel=1"
         - "-Djava.security.edg=file:/dev/./urandom"
+        - "-Ddebug=true"
         - "-Dspring.profiles.active=tc"
         - "-Dspring.temporal.namespace=%TEMPORAL_NAMESPACE%"
         - "-Dspring.temporal.connection.target=%TEMPORAL_ENDPOINT%"
@@ -59,12 +69,12 @@ spec:
         - name: key_volume
           readOnly: true
           mountPath: /keyvolume
-#      - image: "%OTELCOL_IMAGE%"
-#        name: collector
-#        startupProbe:
-#          httpGet:
-#            path: /
-#            port: 13133
+      - image: "%OTELCOL_IMAGE%"
+        name: collector
+        startupProbe:
+          httpGet:
+            path: /
+            port: 13133
       volumes:
       - name: cacert_volume
         secret:

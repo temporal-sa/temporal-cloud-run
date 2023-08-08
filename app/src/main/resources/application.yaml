@@ -1,6 +1,8 @@
 # Configuration for local development
 server:
-  port: 8080
+  tomcat:
+    max-threads: 80
+  port: ${PORT:8080}
 spring:
   main:
     allow-bean-definition-overriding: true
