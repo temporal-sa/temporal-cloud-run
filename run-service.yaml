@@ -15,6 +15,7 @@ spec:
   template:
     metadata:
       annotations:
+        autoscaling.knative.dev/minScale: '1' # keep one instance available
         run.googleapis.com/cpu-throttling: 'false'  # we need to keep the CPU running
         run.googleapis.com/startup-cpu-boost: 'true' # java likes more CPU
 #        run.googleapis.com/execution-environment: gen1
