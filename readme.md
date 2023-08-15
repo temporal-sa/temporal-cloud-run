@@ -43,3 +43,41 @@ In this example, I chose to send the metrics to [Google Cloud Managed Prometheus
 The collector supports a wide range of other [exporters](https://opentelemetry.io/ecosystem/registry/?component=exporter) 
 including Prometheus Remote Write Collector, Datadog, Splunk, Google Cloud Pubsub, Google Cloud Operations Collector. 
 The full list of exporters are available [here](https://opentelemetry.io/ecosystem/registry/?component=exporter).
+
+## Project Organization
+
+The structure of this repository is laid out in the following manner
+
+* [app](app/readme.md) - Sample Java application to deploy to Cloud Run
+* [collector](collector) - Contains details for running the Open Telemetry Connector
+* [gcp-infra](gcp-infra/readme.md) - [Pulumi](https://www.pulumi.com/) project to create a new GCP project
+
+## How to Use this example
+
+* Follow the steps listed in the [gcp-infra/readme](gcp-infra/readme.md). 
+* Once the application has been deployed, you can access the application.
+
+### Access via private
+
+By default, the application is not publicly visible. To access use the following command:
+
+```shell
+gcloud beta run services proxy temporal-metrics-sample --project <PROJECT_ID> --region <REGION>
+```
+Once the proxy is running, visit the application by navigating to [http://localhost:8080]
+
+### Make the Application Public
+
+To access the application via its public URL, uncomment the last step in [cloudbuild.yaml](cloudbuild.yaml). 
+Alternatively, you can run the following command:
+
+````shell
+gcloud run services set-iam-policy temporal-metrics-sample policy.yaml --region <REGION>
+````
+
+To retrieve the public URL run the following command:
+
+````shell
+gcloud run services describe temporal-metrics-sample --region <REGION> --format='value(status.url)'
+````
+
