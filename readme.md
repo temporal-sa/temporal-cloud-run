@@ -81,3 +81,42 @@ To retrieve the public URL run the following command:
 gcloud run services describe temporal-metrics-sample --region <REGION> --format='value(status.url)'
 ````
 
+### Start the Workflow
+
+Using the appropriate URL, (see the section above), navigate to application. You should see the following page:
+
+![Temporal Metrics Sample Application](images/TemporalAppHome.png)
+
+Click on the Start the Metrics Worfklow
+
+![Start the Workflow](images/TemporalAppStartWorkflow.png)
+
+Enter some text for the input and click the Run Workflow button. This will start the workflow. After about 30 seconds, the workflow will complete:
+
+![Completed Workflow](images/TemporalAppWorkflowComplete.png)
+
+The application purposefully fails the activity for a few times before completing so that there are interesting metrics.
+
+Start the workflow a couple of more times to get a few more executions. 
+
+Open up the Temporal Cloud console, by navigating to [https://cloud.temporal.io](https://cloud.temporal.io) to view the progress of the workflows.
+
+### View Metrics in Google Cloud Monitoring
+
+Open the [Metrics Explorer](https://console.cloud.google.com/monitoring/metrics-explorer) in Google Cloud Console. In 
+the Metric drop down, scroll down to Prometheus Target, Temporal and click on Prometheus/temporal_long_request_total/counter 
+and click on the Apply button.
+
+![Prometheus/temporal_long_request_total/counter](images/GCPMetricRequestTotalCounter.png)
+
+Now in the time box near the upper right of the screen, click the down arrow and select Last 30 Minutes. You should see 
+a graph that looks similar to this one:
+
+![Request Total Counter Graph](images/GCPMetricsRequestTotalCounterGraph.png)
+
+Feel free to experiment adding additional metrics.
+
+
+
+
+
