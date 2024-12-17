@@ -22,6 +22,7 @@ package io.temporal.samples.springboot;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.samples.springboot.hello.MetricWorkflow;
+import io.temporal.samples.springboot.hello.WorkflowInput;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ public class HelloSampleTest {
                 .setTaskQueue("HelloSampleTaskQueue")
                 .setWorkflowId("HelloSampleTest")
                 .build());
-    String result = workflow.execute("Temporal");
+    String result = workflow.execute(new WorkflowInput("Temporal"));
     Assert.notNull(result, "Result should not be null");
     //Assert.isTrue(result.equals("Hello Temporal User!"), "Invalid result");
   }

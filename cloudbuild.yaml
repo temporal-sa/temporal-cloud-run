@@ -103,9 +103,7 @@ substitutions:
   _TEMPORAL_ENDPOINT: foo.xxxx.tmprl.cloud:7233
   _TEMPORAL_INSECURE_TRUST_MANAGER: "false"
 
-#cccccbglcdunkrrnbucrdiedikgtuuhrhljfrbcfjrbi
-
-# override these substutions when submitting the build in the current folder
+# override these substitutions when submitting the build in the current folder
 #  gcloud builds submit . \
 #    --substitutions=_REGION=<region>,_REPOSITORY_NAME=<repo>_SA_NAME=xxxx-sa_TEMPORAL_NAMESPACE=<namespace>,_TEMPORAL_ENDPOINT=<endpoint>,_TEMPORAL_INSECURE_TRUST_MANAGER=true \
 #

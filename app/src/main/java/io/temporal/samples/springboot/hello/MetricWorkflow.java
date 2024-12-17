@@ -25,5 +25,5 @@ import io.temporal.workflow.WorkflowMethod;
 @WorkflowInterface
 public interface MetricWorkflow {
   @WorkflowMethod
-  String execute(String input);
+  String execute(WorkflowInput input);
 }

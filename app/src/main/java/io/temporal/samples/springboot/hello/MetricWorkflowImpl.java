@@ -33,10 +33,10 @@ public class MetricWorkflowImpl implements MetricWorkflow {
           ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(2)).build());
 
   @Override
-  public String execute(String input) {
-    String result = activity.activityA(input);
+  public String execute(WorkflowInput input) {
+    String result = activity.activityA(input.getInput());
     Workflow.sleep(Duration.ofSeconds(5));
-    result = result + activity.activityB(input);
+    result = result + activity.activityB(input.getInput());
 
     return result;
   }

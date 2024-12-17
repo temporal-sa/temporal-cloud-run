@@ -9,7 +9,7 @@ metadata:
   labels:
     cloud.googleapis.com/location: us-east1
   annotations:
-    run.googleapis.com/launch-stage: BETA
+#    run.googleapis.com/launch-stage: BETA
     run.googleapis.com/description: Example Temporal Worker deployed in Cloud Run with Open Telemetry Collector as a sidecar
 spec:
   template:

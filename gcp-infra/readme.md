@@ -2,6 +2,7 @@
 
 Prerequisites
 * [pulumi](https://www.pulumi.com/docs/install/)
+* [gcloud](https://cloud.google.com/sdk/docs/install)
 
 Clone this repository and run pulumi up.
 
@@ -9,6 +10,8 @@ Clone this repository and run pulumi up.
 git clone https://
 cd /path/to/repo/cloud-run/gcp-infra
 npm install
+# Make sure you log in with your account that has sufficient permissions
+gcloud auth application-default login 
 pulumi up
 ```
 
@@ -52,7 +55,7 @@ Outputs:
 
 The runCloudBuild output contains a script that submits a Cloud Build job to build the application 
 and the Open Telemetry Collector and deploy them into Cloud Run. To see just the output of the runCloudBuild variable
-run the follwoing command:
+run the following command:
 
 ```shell
 pulumi stack output runCloudBuild
