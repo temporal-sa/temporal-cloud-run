@@ -50,6 +50,7 @@ steps:
       sed -i s@%TEMPORAL_NAMESPACE%@${TEMPORAL_NAMESPACE}@g run-service.yaml
       sed -i s@%TEMPORAL_ENDPOINT%@${TEMPORAL_ENDPOINT}@g run-service.yaml
       sed -i s@%TEMPORAL_INSECURE_TRUST_MANAGER%@${TEMPORAL_INSECURE_TRUST_MANAGER}@g run-service.yaml
+      sed -i s@%DATE_UPDATED%@"was_$(date '+%Y-%m-%d_%H_%M_%S')"@g run-service.yaml
       perl -p -e 's/%SERVICE_ACCOUNT_EMAIL%/$ENV{SA_EMAIL}/g' run-service.yaml > run-service-new.yaml
       cp run-service-new.yaml run-service.yaml
       echo "done substituting variables"

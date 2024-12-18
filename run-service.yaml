@@ -9,16 +9,16 @@ metadata:
   labels:
     cloud.googleapis.com/location: us-east1
   annotations:
-#    run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/description: Example Temporal Worker deployed in Cloud Run with Open Telemetry Collector as a sidecar
+    run.googleapis.com/description: "Example Temporal Worker deployed in Cloud Run with Open Telemetry Collector as a sidecar"
 spec:
   template:
     metadata:
+      labels:
+        date_updated: %DATE_UPDATED%
       annotations:
         autoscaling.knative.dev/minScale: '1' # keep one instance available
         run.googleapis.com/cpu-throttling: 'false'  # we need to keep the CPU running
         run.googleapis.com/startup-cpu-boost: 'true' # java likes more CPU
-#        run.googleapis.com/execution-environment: gen1
         run.googleapis.com/container-dependencies: '{"app":["collector"]}'
     spec:
       serviceAccountName: %SERVICE_ACCOUNT_EMAIL%
