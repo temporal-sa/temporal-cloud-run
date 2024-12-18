@@ -71,7 +71,7 @@ public class MetricsController {
     System.out.println(getCurrentDateTime() + "| Starting workflow for input " + input.getInput());
     String result = workflow.execute(input);
     System.out.println(getCurrentDateTime() + "| The result of the workflow execution for " + input.getInput() + " is " + result);
-    return new ResponseEntity<>("\"" + input.getInput() + ":" + result + "\"", HttpStatus.OK);
+    return new ResponseEntity<>("\" For input: |" + input.getInput() + "| the result was " + result + "\"", HttpStatus.OK);
   }
 
   private static String generateWorkflowId() {
