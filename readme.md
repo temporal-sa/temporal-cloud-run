@@ -136,7 +136,7 @@ better approach would be to pull directly from git), this effectively forces a n
 In the [cloudbuild.yaml](cloudbuild.yaml) file, the label is updated to the current date and time. Due to 
 strict naming rules, the format of this is "was_YYYY-MM-DD_HH_MM_SS"   
 
-The [readme.md](gcp-infra/readme.md) has been updated to include some missing steps and a 
+The [readme.md](gcp-infra/readme.md) has been updated to include some missing steps.
 
 
 
