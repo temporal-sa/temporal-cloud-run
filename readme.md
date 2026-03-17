@@ -48,7 +48,8 @@ The full list of exporters are available [here](https://opentelemetry.io/ecosyst
 
 The structure of this repository is laid out in the following manner
 
-* [app](app/readme.md) - Sample Java application to deploy to Cloud Run
+* [app-ui](app-ui/readme.md) - Sample Java application to deploy to Cloud Run
+* [app-worker](app-worker/readme.md) - Java application that contains the Worker, Temporal SDK and emits metrics
 * [collector](collector) - Contains details for running the Open Telemetry Connector
 * [gcp-infra](gcp-infra/readme.md) - [Pulumi](https://www.pulumi.com/) project to create a new GCP project
 
@@ -103,11 +104,14 @@ Open up the Temporal Cloud console, by navigating to [https://cloud.temporal.io]
 
 ### View Metrics in Google Cloud Monitoring
 
+Open [Metrics Management](https://console.cloud.google.com/monitoring/metrics-management/metrics) in Google Cloud Console.
+in the filter, you can type temporal and hit enter. The list of metrics will be filtered to those emitted by the SDK. 
+Find temporal_long_request_total/counter in the list. Scroll to the right to the three vertical dots, click the actions 
+and view this in the Metrics Explorer. 
+
 Open the [Metrics Explorer](https://console.cloud.google.com/monitoring/metrics-explorer) in Google Cloud Console. In 
 the Metric drop down, scroll down to Prometheus Target, Temporal and click on Prometheus/temporal_long_request_total/counter 
 and click on the Apply button.
-
-![Prometheus/temporal_long_request_total/counter](images/GCPMetricRequestTotalCounter.png)
 
 Now in the time box near the upper right of the screen, click the down arrow and select Last 30 Minutes. You should see 
 a graph that looks similar to this one:
@@ -115,7 +119,6 @@ a graph that looks similar to this one:
 ![Request Total Counter Graph](images/GCPMetricsRequestTotalCounterGraph.png)
 
 Feel free to experiment adding additional metrics.
-
 
 ## Latest Updates - 12-19-2024
 

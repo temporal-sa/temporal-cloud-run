@@ -4,7 +4,11 @@
 .gitignore
 /node_modules/
 /gcp-infra/
-/app/build/
-/app/.DS_Store
-/app/.idea/
-/app/.gradle/
+/app-ui/build/
+/app-ui/.DS_Store
+/app-ui/.idea/
+/app-ui/.gradle/
+/app-worker/build/
+/app-worker/.DS_Store
+/app-worker/.idea/
+/app-worker/.gradle/

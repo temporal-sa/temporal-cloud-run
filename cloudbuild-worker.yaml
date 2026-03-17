@@ -1,0 +1,155 @@
+#
+# Cloud Build pipeline - Temporal Worker Pool
+# Builds and deploys the Worker Pool and applies the CREMA autoscaling config.
+#
+# gcloud builds submit . \
+#   --config=cloudbuild-worker.yaml \
+#   --substitutions=_REGION=<region>,_REPOSITORY_NAME=<repo>,_SA_NAME=<sa-name>,_SA_EMAIL=<sa-email>,\
+#                   _TEMPORAL_NAMESPACE=<namespace>,_TEMPORAL_ENDPOINT=<endpoint>,\
+#                   _TEMPORAL_INSECURE_TRUST_MANAGER=false
+#
+
+steps:
+  - name: "gradle:8.0-jdk17"
+    entrypoint: gradle
+    dir: 'app-worker'
+    args: ['build']
+    id: BUILD_JAVA_WORKER
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "${_IMAGE_WORKER}", "./app-worker", "--build-arg=JAR_FILE=build/libs/app.jar"]
+    id: BUILD_WORKER_IMAGE
+    waitFor:
+      - BUILD_JAVA_WORKER
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_WORKER}"]
+    id: PUSH_WORKER_IMAGE
+    waitFor:
+      - BUILD_WORKER_IMAGE
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "${_IMAGE_COLLECTOR}", "./collector"]
+    id: BUILD_COLLECTOR
+    waitFor: ["-"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_COLLECTOR}"]
+    id: PUSH_COLLECTOR
+    waitFor:
+      - BUILD_COLLECTOR
+
+# uses perl instead of SED because of @ sign in email address
+  - name: "ubuntu"
+    env:
+      - "IMAGE_WORKER=${_IMAGE_WORKER}"
+      - "IMAGE_COLLECTOR=${_IMAGE_COLLECTOR}"
+      - "TEMPORAL_NAMESPACE=${_TEMPORAL_NAMESPACE}"
+      - "TEMPORAL_ENDPOINT=${_TEMPORAL_ENDPOINT}"
+      - "TEMPORAL_INSECURE_TRUST_MANAGER=${_TEMPORAL_INSECURE_TRUST_MANAGER}"
+      - "SA_EMAIL=${_SA_EMAIL}"
+      - "REGION=${_REGION}"
+      - "PROJECT_ID=${PROJECT_ID}"
+    script: |
+      echo "substituting variables in run-workerpool.yaml"
+      sed -i s@%WORKER_APP_IMAGE%@${IMAGE_WORKER}@g run-workerpool.yaml
+      sed -i s@%OTELCOL_IMAGE%@${IMAGE_COLLECTOR}@g run-workerpool.yaml
+      sed -i s@%TEMPORAL_NAMESPACE%@${TEMPORAL_NAMESPACE}@g run-workerpool.yaml
+      sed -i s@%TEMPORAL_ENDPOINT%@${TEMPORAL_ENDPOINT}@g run-workerpool.yaml
+      sed -i s@%TEMPORAL_INSECURE_TRUST_MANAGER%@${TEMPORAL_INSECURE_TRUST_MANAGER}@g run-workerpool.yaml
+      sed -i s@%REGION%@${REGION}@g run-workerpool.yaml
+      sed -i s@%DATE_UPDATED%@"was_$(date '+%Y-%m-%d_%H_%M_%S')"@g run-workerpool.yaml
+      perl -p -e 's/%SERVICE_ACCOUNT_EMAIL%/$ENV{SA_EMAIL}/g' run-workerpool.yaml > run-workerpool-new.yaml
+      cp run-workerpool-new.yaml run-workerpool.yaml
+
+      echo "substituting variables in crema-config.yaml"
+      sed -i s@%TEMPORAL_NAMESPACE%@${TEMPORAL_NAMESPACE}@g crema-config.yaml
+      sed -i s@%TEMPORAL_ENDPOINT%@${TEMPORAL_ENDPOINT}@g crema-config.yaml
+      sed -i s@%REGION%@${REGION}@g crema-config.yaml
+      sed -i s@%PROJECT_ID%@${PROJECT_ID}@g crema-config.yaml
+
+      echo "done substituting variables"
+    id: REPLACE_WORKER_YAML
+    waitFor: ["-"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "beta",
+        "run",
+        "worker-pools",
+        "replace",
+        "run-workerpool.yaml",
+      ]
+    id: DEPLOY_WORKER_POOL
+    waitFor:
+      - PUSH_WORKER_IMAGE
+      - PUSH_COLLECTOR
+      - REPLACE_WORKER_YAML
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+    script: |
+      gcloud parametermanager parameters describe crema-config \
+        --location=global --project=${PROJECT_ID} 2>/dev/null || \
+        gcloud parametermanager parameters create crema-config \
+          --location=global --project=${PROJECT_ID}
+      gcloud parametermanager parameters versions describe 1 \
+        --parameter=crema-config --location=global --project=${PROJECT_ID} 2>/dev/null && \
+        gcloud parametermanager parameters versions delete 1 \
+          --parameter=crema-config --location=global --project=${PROJECT_ID} --quiet || true
+      gcloud parametermanager parameters versions create 1 \
+        --location=global \
+        --parameter=crema-config \
+        --project=${PROJECT_ID} \
+        --payload-data-from-file=crema-config.yaml
+    id: UPLOAD_CREMA_CONFIG
+    waitFor:
+      - REPLACE_WORKER_YAML
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "beta", "run", "deploy", "crema-autoscaler",
+        "--image=${_CREMA_IMAGE}",
+        "--region=${_REGION}",
+        "--service-account=${_CREMA_SA_EMAIL}",
+        "--no-allow-unauthenticated",
+        "--no-cpu-throttling",
+        "--min-instances=1",
+        "--set-env-vars=CREMA_CONFIG=projects/${PROJECT_ID}/locations/global/parameters/crema-config/versions/1",
+      ]
+    id: DEPLOY_CREMA
+    waitFor:
+      - UPLOAD_CREMA_CONFIG
+      - DEPLOY_WORKER_POOL
+
+substitutions:
+  _REGION: us-east1
+  _REPOSITORY_NAME: demo-repository
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_NAME}
+  _IMAGE_WORKER: ${_REGISTRY}/metrics-worker
+  _IMAGE_COLLECTOR: ${_REGISTRY}/collector
+  _SA_NAME: temporal-cloud-run-sa
+  _SA_EMAIL: temporal-cloud-run-sa@${PROJECT_ID}.iam.gserviceaccount.com
+  # Pinned to last known-good digest. The autoscaler:1.0 tag was updated on 2026-03-17 to a broken
+  # image (sha256:cc59cc90) that is missing its base OS and JVM layers, causing the container to
+  # crash immediately on startup. Upgrade to a newer tag only after verifying the image works.
+  _CREMA_IMAGE: us-central1-docker.pkg.dev/cloud-run-oss-images/crema-v1/autoscaler@sha256:b049427245cbefdfd1fee3606655579b2c5e6cfa87e6bc9474f0df09f9262204
+  _CREMA_SA_EMAIL: ${_SA_EMAIL}
+  _TEMPORAL_NAMESPACE: foo.xxxx
+  _TEMPORAL_ENDPOINT: foo.xxxx.tmprl.cloud:7233
+  _TEMPORAL_INSECURE_TRUST_MANAGER: "false"
+
+images:
+  - ${_IMAGE_WORKER}
+  - ${_IMAGE_COLLECTOR}
+
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY

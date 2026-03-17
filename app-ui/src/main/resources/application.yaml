@@ -1,0 +1,25 @@
+# Configuration for local development
+server:
+  tomcat:
+    max-threads: 80
+  port: ${PORT:8080}
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: temporal-metrics-ui
+  temporal:
+    workersAutoDiscovery:
+      packages: io.temporal.samples.springboot
+    namespace: default
+    connection:
+      target: 127.0.0.1:7233
+# actuator (healthcheck only - no prometheus scraping needed on UI)
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: info, health
+  server:
+    port: 8081

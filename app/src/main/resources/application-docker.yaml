@@ -1,6 +1,0 @@
-# Configuration for connecting to a Temporal Server running on your local development machine from a docker container
-spring:
-  temporal:
-    namespace: default
-    connection:
-      target: host.docker.internal:7233

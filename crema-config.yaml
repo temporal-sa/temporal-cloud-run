@@ -1,0 +1,66 @@
+#
+# CREMA Configuration - Scale Temporal Worker Pool based on task queue backlog depth
+#
+# CREMA authenticates to the Temporal Cloud API using an API key stored in Secret Manager.
+# The 'temporal-api-key' secret must be created before deploying:
+#   gcloud secrets create temporal-api-key --replication-policy=automatic
+#   echo -n "YOUR_API_KEY" | gcloud secrets versions add temporal-api-key --data-file=-
+#
+# Apply with:
+#   gcloud run crema configs replace crema-config.yaml --region REGION
+#
+
+apiVersion: crema/v1
+kind: CremaConfig
+spec:
+  pollingInterval: 15
+
+  triggerAuthentications:
+    - metadata:
+        name: temporal-cloud-auth
+      spec:
+        gcpSecretManager:
+          secrets:
+            - parameter: apiKey
+              id: temporal-api-key
+              version: latest
+            - parameter: cert
+              id: clientCert
+              version: latest
+            - parameter: key
+              id: clientKey
+              version: latest
+
+  scaledObjects:
+    - spec:
+        scaleTargetRef:
+          name: projects/%PROJECT_ID%/locations/%REGION%/workerPools/temporal-worker
+        minReplicaCount: 0
+        maxReplicaCount: 10
+        triggers:
+          - type: temporal
+            metadata:
+              endpoint: %TEMPORAL_ENDPOINT%
+              namespace: %TEMPORAL_NAMESPACE%
+              taskQueue: MetricQueue
+              targetQueueSize: "5"
+              activationTargetQueueSize: "1"
+              queueTypes: workflow,activity
+              selectUnversioned: "true"
+            authenticationRef:
+              name: temporal-cloud-auth
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: 0
+                policies:
+                  - type: Percent
+                    value: 100
+                    periodSeconds: 15
+              scaleDown:
+                stabilizationWindowSeconds: 60
+                policies:
+                  - type: Pods
+                    value: 2
+                    periodSeconds: 30

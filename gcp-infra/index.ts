@@ -21,7 +21,7 @@ const gcpProjectId = config.require("project");
 const topLevelConfig = new pulumi.Config()
 
 const gcpConfig = topLevelConfig.requireObject<GcpConfig>('gcp');
-// stuff the orjectId into our configuration structure
+// stuff the projectId into our configuration structure
 gcpConfig.projectId = gcpProjectId;
 
 interface TemporalCloudConfig {
@@ -104,6 +104,15 @@ const secretManagerApi = new gcp.projects.Service("secrets-mgr-api", {
    project: myProject.projectId,
 });
 
+const parameterManagerApi = new gcp.projects.Service("parameter-mgr-api", {
+   disableDependentServices: true,
+   service: "parametermanager.googleapis.com",
+   project: myProject.projectId,
+});
+
+// Worker Pools and CREMA require the v2 Cloud Run API (already enabled via run.googleapis.com)
+// CREMA also requires the Cloud Run Admin API which is included above
+
 // create a network and have the subnets automatically created
 const network = new gcp.compute.Network(gcpConfig.vpcName, {
     autoCreateSubnetworks: true,
@@ -176,12 +185,27 @@ const svcAccountSecretManagerAccessor = new gcp.projects.IAMMember("cr-svc-acct-
    member: pulumi.interpolate`serviceAccount:${cloudRunServiceAccount.email}`,
 });
 
+// CREMA reads its config from Parameter Manager.
+// The IAM binding must be applied after the parameter is created by Cloud Build:
+//   gcloud parametermanager parameters add-iam-policy-binding crema-config \
+//     --location=global \
+//     --project=<PROJECT_ID> \
+//     --member="serviceAccount:tmprl-cr-service-account@<PROJECT_ID>.iam.gserviceaccount.com" \
+//     --role="roles/parametermanager.viewer"
+
 // need to be able to write to Managed Prometheus
 const svcAccountCloudRunTimeSeriesCreate = new gcp.projects.IAMMember("cr-svc-acct-time-series-create", {
   project: myProject.projectId,
   role: "roles/monitoring.metricWriter",
   member: pulumi.interpolate`serviceAccount:${cloudRunServiceAccount.email}`,
 });
+
+// CREMA reads from Secret Manager to retrieve the Temporal Cloud API key
+// Grant the CREMA service agent access to the temporal-api-key secret.
+// Note: replace PROJECT_NUMBER with your actual GCP project number after running pulumi up.
+// gcloud secrets add-iam-policy-binding temporal-api-key \
+//   --member="serviceAccount:service-PROJECT_NUMBER@gcp-sa-crema.iam.gserviceaccount.com" \
+//   --role="roles/secretmanager.secretAccessor"
 
 // create an artifact registry
 const artifactRegistry = new gcp.artifactregistry.Repository("artifact-repo", {
@@ -241,6 +265,31 @@ const clientCertSecretVersion = new gcp.secretmanager.SecretVersion("clientCertS
     dependsOn: [certSecret],
 });
 
+// Temporal Cloud API key for CREMA to query task queue backlog depth.
+// The secret value must be set manually after infrastructure is provisioned:
+//   echo -n "YOUR_TEMPORAL_API_KEY" | gcloud secrets versions add temporal-api-key --data-file=-
+const temporalApiKeySecret = new gcp.secretmanager.Secret("temporal-api-key-secret", {
+    project: myProject.projectId,
+    labels: {
+        purpose: "temporal-cloud",
+        clienttype: "crema-api-key",
+    },
+    replication: {
+        automatic: true,
+    },
+    secretId: "temporal-api-key",
+},{
+    dependsOn: [secretManagerApi],
+});
+
+// CREMA reads from Secret Manager to retrieve the Temporal Cloud API key.
+// The CREMA service agent is only provisioned after CREMA is first used in the project,
+// so this IAM grant must be done manually after the first CREMA workerpool is created:
+//   gcloud secrets add-iam-policy-binding temporal-api-key \
+//     --project=<PROJECT_ID> \
+//     --member="serviceAccount:service-<PROJECT_NUMBER>@gcp-sa-crema.iam.gserviceaccount.com" \
+//     --role="roles/secretmanager.secretAccessor"
+
 export const serviceAccountEmail = cloudRunServiceAccount.email;
 export const serviceAccountFullName = cloudRunServiceAccount.name;
 export const serviceAccountShortName = cloudRunServiceAccount.accountId;
@@ -283,5 +332,17 @@ const svcAccountCloudRunAdminCloudBuild = new gcp.projects.IAMMember("cb-svc-acc
     member: pulumi.interpolate`serviceAccount:${cloudBuildServiceAccount.email}`,
 });
 
-export const runCloudBuild =  pulumi.interpolate`cd ..; gcloud config set project ${myProject.projectId}; gcloud builds submit . --substitutions=_REGION=${gcpConfig.region},_REPOSITORY_NAME=${artifactRegistry.repositoryId},_SA_NAME=${cloudRunServiceAccount.accountId},_SA_EMAIL=${cloudRunServiceAccount.email},_TEMPORAL_NAMESPACE=${temporalConfig.namespace},_TEMPORAL_ENDPOINT=${temporalConfig.endpoint},_TEMPORAL_INSECURE_TRUST_MANAGER=${String(temporalConfig.insecureTrustManager)}`;
+// Cloud Run SA is used by both Cloud Build (to write config) and CREMA (to read config)
+const svcAccountParameterManagerAdmin = new gcp.projects.IAMMember("cr-svc-acct-parameter-mgr-admin", {
+    project: myProject.projectId,
+    role: "roles/parametermanager.admin",
+    member: pulumi.interpolate`serviceAccount:${cloudRunServiceAccount.email}`,
+}, {
+    dependsOn: [parameterManagerApi],
+});
+
+const buildSubstitutions = pulumi.interpolate`_REGION=${gcpConfig.region},_REPOSITORY_NAME=${artifactRegistry.repositoryId},_SA_NAME=${cloudRunServiceAccount.accountId},_SA_EMAIL=${cloudRunServiceAccount.email},_TEMPORAL_NAMESPACE=${temporalConfig.namespace},_TEMPORAL_ENDPOINT=${temporalConfig.endpoint},_TEMPORAL_INSECURE_TRUST_MANAGER=${String(temporalConfig.insecureTrustManager)}`;
+
+export const runCloudBuildUI = pulumi.interpolate`cd ..; gcloud config set project ${myProject.projectId}; gcloud builds submit . --config=cloudbuild-ui.yaml --substitutions=${buildSubstitutions}`;
+export const runCloudBuildWorker = pulumi.interpolate`cd ..; gcloud config set project ${myProject.projectId}; gcloud builds submit . --config=cloudbuild-worker.yaml --substitutions=${buildSubstitutions}`;
 export const cloudRunSvcAccountEmail = cloudRunServiceAccount.email;

@@ -1,29 +1,34 @@
 #
-# Cloud Run Service - Temporal Metrics UI
-# Deploys the UI/API container as a standard Cloud Run service.
-# Connects to Temporal Cloud as a workflow client (no workers).
+# Cloud Run Worker Pool - Temporal Workers
+# Deploys Temporal workflow/activity workers as a Cloud Run Worker Pool.
+# Scaled by CREMA based on task queue backlog depth.
+# OTEL Collector sidecar forwards SDK metrics to Google Managed Prometheus.
+#
+# Deploy with:
+#   gcloud run worker-pools replace run-workerpool.yaml --region REGION
 #
 
-apiVersion: serving.knative.dev/v1
-kind: Service
+apiVersion: run.googleapis.com/v1
+kind: WorkerPool
 metadata:
-  name: temporal-metrics-ui
+  name: temporal-worker
   labels:
     cloud.googleapis.com/location: %REGION%
   annotations:
-    run.googleapis.com/description: "Temporal Metrics UI - workflow client frontend"
+    run.googleapis.com/launch-stage: BETA
 spec:
   template:
     metadata:
       labels:
         date_updated: %DATE_UPDATED%
       annotations:
-        run.googleapis.com/startup-cpu-boost: 'true' # java likes more CPU at startup
+        run.googleapis.com/cpu-throttling: 'false'     # required: workers use long-polling
+        run.googleapis.com/container-dependencies: '{"app-worker":["collector"]}'
     spec:
       serviceAccountName: %SERVICE_ACCOUNT_EMAIL%
       containers:
-      - image: "%UI_APP_IMAGE%"
-        name: app
+      - image: "%WORKER_APP_IMAGE%"
+        name: app-worker
         startupProbe:
           httpGet:
             path: /health
@@ -31,11 +36,12 @@ spec:
           initialDelaySeconds: 30
         livenessProbe:
           httpGet:
-            path: /
+            path: /health
+            port: 8081
         resources:
           limits:
-            memory: "1Gi"
-            cpu: "2"
+            memory: "2Gi"
+            cpu: "4"
         command:
         - "java"
         args:
@@ -55,8 +61,6 @@ spec:
         - "-Dspring.temporal.connection.mtls.cert-chain-file=/cavolume/clientCert.pem"
         - "-jar"
         - "app.jar"
-        ports:
-          - containerPort: 8080
         volumeMounts:
         - name: cacert_volume
           readOnly: true
@@ -64,6 +68,15 @@ spec:
         - name: key_volume
           readOnly: true
           mountPath: /keyvolume
+      - image: "%OTELCOL_IMAGE%"
+        name: collector
+        env:
+        - name: CLOUD_RUN_REGION
+          value: "%REGION%"
+        startupProbe:
+          httpGet:
+            path: /
+            port: 13133
       volumes:
       - name: cacert_volume
         secret:

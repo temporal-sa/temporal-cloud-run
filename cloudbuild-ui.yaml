@@ -1,0 +1,105 @@
+#
+# Cloud Build pipeline - Temporal Metrics UI
+# Builds and deploys the UI Cloud Run Service.
+#
+# gcloud builds submit . \
+#   --config=cloudbuild-ui.yaml \
+#   --substitutions=_REGION=<region>,_REPOSITORY_NAME=<repo>,_SA_NAME=<sa-name>,_SA_EMAIL=<sa-email>,\
+#                   _TEMPORAL_NAMESPACE=<namespace>,_TEMPORAL_ENDPOINT=<endpoint>,\
+#                   _TEMPORAL_INSECURE_TRUST_MANAGER=false
+#
+
+steps:
+  - name: "gradle:8.0-jdk17"
+    entrypoint: gradle
+    dir: 'app-ui'
+    args: ['build']
+    id: BUILD_JAVA_UI
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "${_IMAGE_UI}", "./app-ui", "--build-arg=JAR_FILE=build/libs/app.jar"]
+    id: BUILD_UI_IMAGE
+    waitFor:
+      - BUILD_JAVA_UI
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_UI}"]
+    id: PUSH_UI_IMAGE
+    waitFor:
+      - BUILD_UI_IMAGE
+
+# uses perl instead of SED because of @ sign in email address
+  - name: "ubuntu"
+    env:
+      - "IMAGE_UI=${_IMAGE_UI}"
+      - "TEMPORAL_NAMESPACE=${_TEMPORAL_NAMESPACE}"
+      - "TEMPORAL_ENDPOINT=${_TEMPORAL_ENDPOINT}"
+      - "TEMPORAL_INSECURE_TRUST_MANAGER=${_TEMPORAL_INSECURE_TRUST_MANAGER}"
+      - "SA_EMAIL=${_SA_EMAIL}"
+      - "REGION=${_REGION}"
+    script: |
+      echo "substituting variables in run-service.yaml"
+      sed -i s@%UI_APP_IMAGE%@${IMAGE_UI}@g run-service.yaml
+      sed -i s@%TEMPORAL_NAMESPACE%@${TEMPORAL_NAMESPACE}@g run-service.yaml
+      sed -i s@%TEMPORAL_ENDPOINT%@${TEMPORAL_ENDPOINT}@g run-service.yaml
+      sed -i s@%TEMPORAL_INSECURE_TRUST_MANAGER%@${TEMPORAL_INSECURE_TRUST_MANAGER}@g run-service.yaml
+      sed -i s@%REGION%@${REGION}@g run-service.yaml
+      sed -i s@%DATE_UPDATED%@"was_$(date '+%Y-%m-%d_%H_%M_%S')"@g run-service.yaml
+      perl -p -e 's/%SERVICE_ACCOUNT_EMAIL%/$ENV{SA_EMAIL}/g' run-service.yaml > run-service-new.yaml
+      cp run-service-new.yaml run-service.yaml
+      echo "done substituting variables"
+      cat run-service.yaml
+    id: REPLACE_UI_YAML
+    waitFor: ["-"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "replace",
+        "run-service.yaml",
+        "--region",
+        "${_REGION}",
+      ]
+    id: DEPLOY_UI_SERVICE
+    waitFor:
+      - PUSH_UI_IMAGE
+      - REPLACE_UI_YAML
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "services",
+        "add-iam-policy-binding",
+        "temporal-metrics-ui",
+        "--region=${_REGION}",
+        "--member=allUsers",
+        "--role=roles/run.invoker",
+      ]
+    id: ALLOW_PUBLIC_ACCESS
+    waitFor:
+      - DEPLOY_UI_SERVICE
+
+substitutions:
+  _REGION: us-east1
+  _REPOSITORY_NAME: demo-repository
+  _REGISTRY: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_NAME}
+  _IMAGE_UI: ${_REGISTRY}/metrics-ui
+  _SA_NAME: temporal-cloud-run-sa
+  _SA_EMAIL: temporal-cloud-run-sa@${PROJECT_ID}.iam.gserviceaccount.com
+  _TEMPORAL_NAMESPACE: foo.xxxx
+  _TEMPORAL_ENDPOINT: foo.xxxx.tmprl.cloud:7233
+  _TEMPORAL_INSECURE_TRUST_MANAGER: "false"
+
+images:
+  - ${_IMAGE_UI}
+
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/${_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY

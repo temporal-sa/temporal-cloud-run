@@ -9,7 +9,12 @@ export function createGCPProject(
     billingAccountId : string) : any {
 
     let myProject;
-    if (folderId != null && folderId.length > 0) {
+    pulumi.log.info(`folderId is ${folderId}`)
+    pulumi.log.info(`organizationId is ${organizationId}`)
+    pulumi.log.info(`projectName is ${projectName}`)
+    pulumi.log.info(`projectId is ${projectId}`)
+    pulumi.log.info(`billingAccountId is ${billingAccountId}`)
+    if (folderId) {
         pulumi.log.info("Creating a GCP project using the folder ID");
         myProject = new gcp.organizations.Project(projectName, {
             "projectId": projectId,
@@ -17,7 +22,7 @@ export function createGCPProject(
             "billingAccount": billingAccountId,
         });
     } else {
-        if (organizationId != null && organizationId.length > 0) {
+        if (organizationId) {
             pulumi.log.info("Creating a GCP project using the organization ID");
             myProject = new gcp.organizations.Project(projectName, {
                 "projectId": projectId,
@@ -25,8 +30,8 @@ export function createGCPProject(
                 "billingAccount": billingAccountId,
             });
         } else {
-            pulumi.log.error("Missing either an organization ID or folder ID!");
-            throw new Error("Missing either an organization ID or folder ID");
+            pulumi.log.error(`Missing either an organization ID ${organizationId} or folder ID ${folderId}!`)
+            throw new Error("Missing either an organization ID or folder ID")
         }
     }
 

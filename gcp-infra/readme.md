@@ -46,19 +46,29 @@ When completed, Pulumi will display outputs, similar to this:
 
 ```text
 Outputs:
-    cloudRunSvcAccountEmail: "tmprl-cr-service-account@sa-temporal-cr.iam.gserviceaccount.com"
-    runCloudBuild          : "cd ..; gcloud config set project sa-temporal-cr; gcloud builds submit . --substitutions=_REGION=us-east1,_REPOSITORY_NAME=demo-repository,_SA_NAME=tmprl-cr-service-account,_SA_EMAIL=tmprl-cr-service-account@sa-temporal-cr.iam.gserviceaccount.com,_TEMPORAL_NAMESPACE=rick-ross.a2dd6,_TEMPORAL_ENDPOINT=rick-ross.a2dd6.tmprl.cloud:7233,_TEMPORAL_INSECURE_TRUST_MANAGER=true"
-    serviceAccountEmail    : "tmprl-cr-service-account@sa-temporal-cr.iam.gserviceaccount.com"
-    serviceAccountFullName : "projects/sa-temporal-cr/serviceAccounts/tmprl-cr-service-account@sa-temporal-cr.iam.gserviceaccount.com"
-    serviceAccountShortName: "tmprl-cr-service-account"
+  + cloudRunSvcAccountEmail: "tmprl-cr-service-account@rick-gcp-worker-test-2.iam.gserviceaccount.com"
+  + runCloudBuildUI        : "cd ..; gcloud config set project rick-gcp-worker-test-2; gcloud builds submit . --config=cloudbuild-ui.yaml --substitutions=_REGION=us-east1,_REPOSITO..."
+  + runCloudBuildWorker    : "cd ..; gcloud config set project rick-gcp-worker-test-2; gcloud builds submit . --config=cloudbuild-worker.yaml --substitutions=_REGION=us-east1,_REPO..."
+  + serviceAccountEmail    : "tmprl-cr-service-account@rick-gcp-worker-test-2.iam.gserviceaccount.com"
+  + serviceAccountFullName : "projects/rick-gcp-worker-test-2/serviceAccounts/tmprl-cr-service-account@rick-gcp-worker-test-2.iam.gserviceaccount.com"
+  + serviceAccountShortName: "tmprl-cr-service-account"
+
 ```
 
-The runCloudBuild output contains a script that submits a Cloud Build job to build the application 
+The runCloudBuildUI output contains a script that submits a Cloud Build job to build the application 
 and the Open Telemetry Collector and deploy them into Cloud Run. To see just the output of the runCloudBuild variable
 run the following command:
 
 ```shell
-pulumi stack output runCloudBuild
+pulumi stack output runCloudBuildUI
+```
+Take this output and paste it into your terminal or shell and hit enter. This kicks off the Cloud Build
+job and will take a bit of time to provision the infrastructure.
+
+Do the same thing for runCloudBuildWorker
+
+```shell
+pulumi stack output runCloudBuildWorker
 ```
 
 Take this output and paste it into your terminal or shell and hit enter. This kicks off the Cloud Build 
@@ -70,4 +80,41 @@ If you want to see the outputs again you can run the following command:
 pulumi stack output
 ```
 
+Next, we need to create a Temporal API Key that has READ access scoped to our namespace. 
+In Temporal Cloud, navigate to Settings | API Keys and click the Create API Key button.
+Select Service Account, click the plus Sign (next to Mapped to Identity) to Create a Service Account.
 
+Give it name, like "cloud-run-crema-svc-account", select Read-Only for the Account Level Role.
+You may put in a description if you would like.
+
+IN the Manage Access section, select your namespace. The default is Read-Only permissions. 
+
+Click Create Service account.
+
+![images/CreatingServiceAccount.png "Creating a Service Account"]
+
+Next create an API Key that is mapped to the previously created service account. 
+Give it a name and choose when the API key should expire (default is 30 days)
+
+![images/CreatingAPIKey.png "Creating an API Key"]
+
+Open a terminal window and use the command below to send the key to Google Cloud Secret Manager, 
+replacing "YOUR_TEMPORAL_API_KEY" with the key in your browser.
+
+```shell
+echo -n "YOUR_TEMPORAL_API_KEY" | gcloud secrets versions add temporal-api-key \
+--project=rick-gcp-worker-test-2 \
+--data-file=-
+```
+
+Note that you can create an API Key using tcld, but that tool is being deprecated. 
+
+Finally, we need to restart the crema-autoscaler:
+
+```shell
+gcloud run services update crema-autoscaler \
+    --region=us-east1 \
+    --project=rick-gcp-worker-test-2 \
+    --update-env-vars=RESTART=$(date +%s)
+
+```

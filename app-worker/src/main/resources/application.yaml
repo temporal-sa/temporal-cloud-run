@@ -1,0 +1,23 @@
+# Configuration for local development
+server:
+  port: ${PORT:8080}
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: temporal-metrics-worker
+  temporal:
+    workersAutoDiscovery:
+      packages: io.temporal.samples.springboot
+    namespace: default
+    connection:
+      target: 127.0.0.1:7233
+# actuator (sdk metrics exposed for OTEL collector scraping, healthcheck for probes)
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: prometheus, info, health
+  server:
+    port: 8081

@@ -43,11 +43,14 @@ processors:
   resource:
     attributes:
       - key: service.name
-        value: ${env:K_SERVICE}
+        value: temporal-worker
         action: upsert
       - key: service.instance.id
         from_attribute: faas.id
         action: insert
+      - key: cloud.region
+        value: ${CLOUD_RUN_REGION}
+        action: upsert
 
 exporters:
   googlemanagedprometheus:

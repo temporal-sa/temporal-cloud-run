@@ -2,3 +2,5 @@
 /node_modules/
 .idea/
 Pulumi.infrastructure.yaml
+Pulumi.save
+pulumi.dev.yaml
