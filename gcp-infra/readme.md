@@ -65,9 +65,10 @@ pulumi stack output runCloudBuildUI
 Take this output and paste it into your terminal or shell and hit enter. This kicks off the Cloud Build
 job and will take a bit of time to provision the infrastructure.
 
-Do the same thing for runCloudBuildWorker
+Do the same thing for runCloudBuildWorker. Be sure you are in the gcp-infra/ folder.
 
 ```shell
+cd gcp-infra/
 pulumi stack output runCloudBuildWorker
 ```
 
@@ -103,7 +104,7 @@ replacing "YOUR_TEMPORAL_API_KEY" with the key in your browser.
 
 ```shell
 echo -n "YOUR_TEMPORAL_API_KEY" | gcloud secrets versions add temporal-api-key \
---project=rick-gcp-worker-test-2 \
+--project=<GCP PROJECT ID> \
 --data-file=-
 ```
 
@@ -114,7 +115,12 @@ Finally, we need to restart the crema-autoscaler:
 ```shell
 gcloud run services update crema-autoscaler \
     --region=us-east1 \
-    --project=rick-gcp-worker-test-2 \
+    --project=<GCP PROJECT ID> \
     --update-env-vars=RESTART=$(date +%s)
 
 ```
+
+After updating the crema-autoscaler, the worker is scaled down to zero instances. Navigate to Cloud Run | Overview | crema-autoscaler and click on Logs
+
+Now send several requests via the web application. Navigate back to the crema-autoscaler logs and you should see the number of instances increase to 1.
+An easy way to see these changes is to filter by [SCALER]
