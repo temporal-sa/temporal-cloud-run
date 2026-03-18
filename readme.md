@@ -63,7 +63,7 @@ The structure of this repository is laid out in the following manner
 By default, the application is not publicly visible. To access use the following command:
 
 ```shell
-gcloud beta run services proxy temporal-metrics-sample --project <PROJECT_ID> --region <REGION>
+gcloud beta run services proxy temporal-metrics-ui --project <PROJECT_ID> --region <REGION>
 ```
 Once the proxy is running, visit the application by navigating to [http://localhost:8080]
 
@@ -73,13 +73,13 @@ To access the application via its public URL, uncomment the last step in [cloudb
 Alternatively, you can run the following command:
 
 ````shell
-gcloud run services set-iam-policy temporal-metrics-sample policy.yaml --region <REGION>
+gcloud run services set-iam-policy temporal-metrics-ui policy.yaml --region <REGION>
 ````
 
 To retrieve the public URL run the following command:
 
 ````shell
-gcloud run services describe temporal-metrics-sample --region <REGION> --format='value(status.url)'
+gcloud run services describe temporal-metrics-ui --region <REGION> --format='value(status.url)'
 ````
 
 ### Start the Workflow
@@ -104,14 +104,10 @@ Open up the Temporal Cloud console, by navigating to [https://cloud.temporal.io]
 
 ### View Metrics in Google Cloud Monitoring
 
-Open [Metrics Management](https://console.cloud.google.com/monitoring/metrics-management/metrics) in Google Cloud Console.
+Open [Monitoring | Metrics Management](https://console.cloud.google.com/monitoring/metrics-management/metrics) in Google Cloud Console.
 in the filter, you can type temporal and hit enter. The list of metrics will be filtered to those emitted by the SDK. 
 Find temporal_long_request_total/counter in the list. Scroll to the right to the three vertical dots, click the actions 
 and view this in the Metrics Explorer. 
-
-Open the [Metrics Explorer](https://console.cloud.google.com/monitoring/metrics-explorer) in Google Cloud Console. In 
-the Metric drop down, scroll down to Prometheus Target, Temporal and click on Prometheus/temporal_long_request_total/counter 
-and click on the Apply button.
 
 Now in the time box near the upper right of the screen, click the down arrow and select Last 30 Minutes. You should see 
 a graph that looks similar to this one:
@@ -119,6 +115,17 @@ a graph that looks similar to this one:
 ![Request Total Counter Graph](images/GCPMetricsRequestTotalCounterGraph.png)
 
 Feel free to experiment adding additional metrics.
+
+## Latest Updates - March 2026
+
+With the latest addition of Worker Pools and CREMA Scaling, this repository has been updated to 
+reflect how to deploy a Worker Pool and leverage CREMA for scaling Temporal. The application has
+been split into two separate apps - one for the UI and another for the Worker. The worker still 
+uses a sidecar to send the SDK metrics to Google Managed Prometheus.
+
+Changes have also been made to the Pulumi automation within the [gcp-infra](gcp-infra/readme.md) folder.
+there are separate cloudbuild scripts for the UI and the Worker and two deployment files for running
+the UI [run-service.yaml](run-service.yaml) and the Worker Pool [run-workerpool.yaml](run-workerpool.yaml)
 
 ## Latest Updates - 12-19-2024
 

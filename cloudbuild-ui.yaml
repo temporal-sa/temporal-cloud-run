@@ -68,21 +68,23 @@ steps:
       - PUSH_UI_IMAGE
       - REPLACE_UI_YAML
 
-  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
-    entrypoint: gcloud
-    args:
-      [
-        "run",
-        "services",
-        "add-iam-policy-binding",
-        "temporal-metrics-ui",
-        "--region=${_REGION}",
-        "--member=allUsers",
-        "--role=roles/run.invoker",
-      ]
-    id: ALLOW_PUBLIC_ACCESS
-    waitFor:
-      - DEPLOY_UI_SERVICE
+#   uncomment to make the UI publicly available
+#
+#  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+#    entrypoint: gcloud
+#    args:
+#      [
+#        "run",
+#        "services",
+#        "add-iam-policy-binding",
+#        "temporal-metrics-ui",
+#        "--region=${_REGION}",
+#        "--member=allUsers",
+#        "--role=roles/run.invoker",
+#      ]
+#    id: ALLOW_PUBLIC_ACCESS
+#    waitFor:
+#      - DEPLOY_UI_SERVICE
 
 substitutions:
   _REGION: us-east1
