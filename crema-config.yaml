@@ -21,6 +21,7 @@ spec:
       spec:
         gcpSecretManager:
           secrets:
+            # Note: Added cert and key parameters with a namespace that had mTLS and API Keys enabled
             - parameter: apiKey
               id: temporal-api-key
               version: latest
@@ -35,7 +36,7 @@ spec:
     - spec:
         scaleTargetRef:
           name: projects/%PROJECT_ID%/locations/%REGION%/workerPools/temporal-worker
-        minReplicaCount: 0
+        minReplicaCount: 0  # Change to 1 if you want at least one instance always running
         maxReplicaCount: 10
         triggers:
           - type: temporal

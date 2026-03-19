@@ -92,12 +92,12 @@ IN the Manage Access section, select your namespace. The default is Read-Only pe
 
 Click Create Service account.
 
-![images/CreatingServiceAccount.png "Creating a Service Account"]
+![Creating a Service Account](../images/CreatingServiceAccount.png)
 
 Next create an API Key that is mapped to the previously created service account. 
 Give it a name and choose when the API key should expire (default is 30 days)
 
-![images/CreatingAPIKey.png "Creating an API Key"]
+![Creating an API Key](../images/CreatingAPIKey.png)
 
 Open a terminal window and use the command below to send the key to Google Cloud Secret Manager, 
 replacing "YOUR_TEMPORAL_API_KEY" with the key in your browser.
@@ -119,8 +119,24 @@ gcloud run services update crema-autoscaler \
     --update-env-vars=RESTART=$(date +%s)
 
 ```
+Navigate to Cloud Run | Worker Pools in Google Cloud Console. Notice that the number of instances for the temporal worker is showing zero.
 
-After updating the crema-autoscaler, the worker is scaled down to zero instances. Navigate to Cloud Run | Overview | crema-autoscaler and click on Logs
+![Cloud Run Worker Pools](../images/GCRWorkerPools.png)
 
-Now send several requests via the web application. Navigate back to the crema-autoscaler logs and you should see the number of instances increase to 1.
-An easy way to see these changes is to filter by [SCALER]
+y default, the application is not publicly visible. To access use the following command:
+
+```shell
+gcloud beta run services proxy temporal-metrics-ui --project <PROJECT_ID> --region <REGION>
+```
+Once the proxy is running, visit the application by navigating to [http://localhost:8080], 
+enter some text and click the Run Workflow button. Feel free to do this more than one time.
+
+Go back to Cloud Run | Worker Pools in Google Cloud Console. Note that the number if instances
+on the worker is now set to one.
+
+![Worker Pools after scaling](../images/GCRWorkerPoolScaledUp.png)
+
+Now wait a few minutes and watch it scale back down to zero. 
+
+For more details on the what is happening within the crema-autoscaler, you can look at the logs. 
+An easy way to see these scaling changes is to filter by "[SCALER]"

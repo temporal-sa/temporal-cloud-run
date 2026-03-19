@@ -69,7 +69,7 @@ Once the proxy is running, visit the application by navigating to [http://localh
 
 ### Make the Application Public
 
-To access the application via its public URL, uncomment the last step in [cloudbuild.yaml](cloudbuild.yaml). 
+To access the application via its public URL, uncomment the last step in [cloudbuild-ui.yaml](cloudbuild.yaml). 
 Alternatively, you can run the following command:
 
 ````shell
@@ -126,27 +126,4 @@ uses a sidecar to send the SDK metrics to Google Managed Prometheus.
 Changes have also been made to the Pulumi automation within the [gcp-infra](gcp-infra/readme.md) folder.
 there are separate cloudbuild scripts for the UI and the Worker and two deployment files for running
 the UI [run-service.yaml](run-service.yaml) and the Worker Pool [run-workerpool.yaml](run-workerpool.yaml)
-
-## Latest Updates - 12-19-2024
-
-The application was modified to generate a unique Workflow ID and to return the input parameter in the output 
-of the workflow. Also changed was the parameter of the application from a string to a Java Object.
-
-Spring Boot and Temporal SDK versions was updated to reflect latest versions at the time. The node versions 
-in the [gcp-infra](gcp-infra) file were also updated to address vulnerabilities.
-
-Building the container with Docker was revised since the previous version was reliant on a deprecated openjdk8 version. 
-The new version builds a JRE with only the modules being used by the application.  
-
-In the [run-service.yaml](run-service.yaml), it was modified to add a "date_updated" label that is changed on 
-each deployment to Cloud Run. This is because Cloud Run is declarative and will only deploy a new revision if 
-certain values change in the yaml file. Since we are rebuilding the Java application every single time (a 
-better approach would be to pull directly from git), this effectively forces a new revision. 
-
-In the [cloudbuild.yaml](cloudbuild.yaml) file, the label is updated to the current date and time. Due to 
-strict naming rules, the format of this is "was_YYYY-MM-DD_HH_MM_SS"   
-
-The [readme.md](gcp-infra/readme.md) has been updated to include some missing steps.
-
-
 

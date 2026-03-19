@@ -209,6 +209,7 @@ const svcAccountCloudRunTimeSeriesCreate = new gcp.projects.IAMMember("cr-svc-ac
 
 // create an artifact registry
 const artifactRegistry = new gcp.artifactregistry.Repository("artifact-repo", {
+   project: myProject.projectId,
    description: "Demo Docker repository",
    dockerConfig: {
        immutableTags: false,
@@ -217,7 +218,7 @@ const artifactRegistry = new gcp.artifactregistry.Repository("artifact-repo", {
    location: gcpConfig.region,
    repositoryId: "demo-repository",
 }, {
-    dependsOn: [myProject, artifactRegistryApi, svcAccountArtifactCreateOrPush],
+    dependsOn: [myProject, artifactRegistryApi],
 });
 
 // create secrets for the certifications
@@ -228,7 +229,7 @@ const clientKeySecret = new gcp.secretmanager.Secret("clientKey", {
         clienttype: "key",
     },
     replication: {
-        automatic: true,
+        auto: {},
     },
     secretId: "clientKey",
 },{
@@ -250,7 +251,7 @@ const certSecret = new gcp.secretmanager.Secret("cert-secret", {
        clienttype: "cert",
    },
     replication: {
-       automatic: true,
+        auto: {},
     },
     secretId: "clientCert"
 },{
@@ -275,7 +276,7 @@ const temporalApiKeySecret = new gcp.secretmanager.Secret("temporal-api-key-secr
         clienttype: "crema-api-key",
     },
     replication: {
-        automatic: true,
+        auto: {},
     },
     secretId: "temporal-api-key",
 },{

@@ -2,7 +2,6 @@
 # Cloud Run Worker Pool - Temporal Workers
 # Deploys Temporal workflow/activity workers as a Cloud Run Worker Pool.
 # Scaled by CREMA based on task queue backlog depth.
-# OTEL Collector sidecar forwards SDK metrics to Google Managed Prometheus.
 #
 # Deploy with:
 #   gcloud run worker-pools replace run-workerpool.yaml --region REGION
