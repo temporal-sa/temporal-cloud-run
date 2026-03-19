@@ -1,37 +1,31 @@
 # Temporal on Cloud Run
 
 This repository demonstrates how to run workers on [GCP's Cloud Run](https://cloud.google.com/run). 
-Cloud Run is a serverless offering making it easier to deploy and run containerized applications. 
-Initially Cloud Run was only for web based applications that responds to requests. Over time Cloud Run
-has added the ability to run jobs as well. 
 
-As awesome as Cloud Run is, there are some challenges that need to be addressed for applications that 
-act as Temporal workers. One challenge is that Cloud Run is designed to run when requests are made, 
-which provides a nice pay per use model. Unfortunately this doesn't play well with workers which long 
-poll Temporal, waiting for work to process. 
+Google Cloud Run has launched Worker Pools, a new resource type specifically designed 
+for performing continuous background work, which is a better fit for running Temporal 
+Workers on Cloud Run. Additionally, the Cloud Run team has introduced CREMA, 
+(Cloud Run External Metrics Autoscaling), which can be used to scale worker pools 
+based on external metrics, and even scale to zero! This repository updates guidance on 
+worker deployment best practices based on the latest capabilities in Cloud Run.
 
-The workaround for this is to disable [CPU Throttling](https://cloud.google.com/run/docs/configuring/cpu-allocation#setting). In YAML this looks like this:
+Unlike Kubernetes, Google Cloud Run makes it trivial to deploy container-based applications. 
+Have a web API that you want to deploy? Package it up in a container and let Cloud Run take 
+over provisioning the underlying infrastructure, load balancer, and DNS endpoint, and your 
+application is ready to receive traffic. As traffic to your popular API goes up and down, 
+Cloud Run automatically scales based on the inbound traffic and CPU utilization. It’s truly 
+amazing how easy it is to deploy, run, and scale web-based applications.
 
-```yaml
-spec:
-  template:
-    metadata:
-      annotations:
-        run.googleapis.com/cpu-throttling: 'false'  # we need to keep the CPU running
-```
+Temporal Worker applications, however, operate differently. They long-poll Temporal Cloud 
+and process tasks as they become available. This is a much better match for [worker pools](https://docs.cloud.google.com/run/docs/deploy-worker-pools), 
+which was purposefully designed to handle continuous background work. Worker pools do not 
+have a publicly exposed port or use a load balancer like Cloud Run Services. They also do 
+not support auto-scaling.
 
-Another challenge is that by default, an application running Cloud Run is scaled down to zero instances 
-if there are no inbound web requests. This too, doesn't play well with Temporal workers.
-
-The workaround for this is to set the [minimum number of instances](https://cloud.google.com/run/docs/configuring/min-instances#setting):
-
-```yaml
-spec:
-  template:
-    metadata:
-      annotations:
-        autoscaling.knative.dev/minScale: '1' # keep one instance available
-```
+To scale worker pools, Google provides [Cloud Run External Metrics Autoscaling](https://docs.cloud.google.com/run/docs/configuring/workerpools/crema-autoscaling) 
+(CREMA), which leverages [Kubernetes-based Event Driven Autoscaling](https://keda.sh/) (KEDA) 
+to scale worker pools based on external metrics such as [Approximate Backlog Count](https://docs.temporal.io/develop/worker-performance#ApproximateBacklogCountAndAge) 
+from a Temporal Task Queue. It follows the specification outlined [here](https://keda.sh/docs/2.17/scalers/temporal/).
 
 Cloud Run only allows one port to be publicly exposed and exposing a Temporal SDK Metrics 
 endpoint externally is not a good idea. Deploy the [Open Telemetry Connector](https://cloud.google.com/run/docs/tutorials/custom-metrics-opentelemetry-sidecar) in a 
@@ -52,6 +46,14 @@ The structure of this repository is laid out in the following manner
 * [app-worker](app-worker/readme.md) - Java application that contains the Worker, Temporal SDK and emits metrics
 * [collector](collector) - Contains details for running the Open Telemetry Connector
 * [gcp-infra](gcp-infra/readme.md) - [Pulumi](https://www.pulumi.com/) project to create a new GCP project
+
+## Application Architecture
+
+The following diagram shows every major component of this example.  There is the application UI which is deployed
+as a standard Cloud Run service, a Temporal Worker and an OTEL collector that is deployed as a Cloud Run Worker Pool,
+and a CREMA autoscaler that looks at the Approximate Backlog Count and scales the worker up and down.
+
+![Application Architecture](images/TemporalWorkersOnCloudRun.png)
 
 ## How to Use this example
 
